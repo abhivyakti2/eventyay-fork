@@ -112,7 +112,7 @@ class BaseSettings(_BaseSettings):
     postgres_password: str | None = None
     postgres_host: str | None = None
     postgres_port: int | None = None
-    redis_url: str = 'redis://localhost/0'
+    redis_url: str = 'redis://redis:6379/0'
     language_code: str = 'en'
     # Don't send emails to Internet by default.
     email_backend: str = 'django.core.mail.backends.console.EmailBackend'

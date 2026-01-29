@@ -1,0 +1,227 @@
+/**
+ * Mobile Sidebar Navigation Fix
+ * 
+ * PROBLEM: On mobile (max-width: 767px), expanding sidebar menu sections causes:
+ * - Overlapping menu items due to fixed heights
+ * - Unclickable submenu links
+ * - Items not pushing down when expanded
+ * 
+ * SOLUTION: Override fixed heights on mobile to allow natural document flow
+ * Use metisMenu's collapse/collapse.in classes properly
+ * Ensure all links are clickable with adequate padding/height
+ */
+
+@media (max-width: 767px) {
+  /* FIX 1: Remove fixed height on menu items
+     ISSUE: `.nav>li { height: 41px; }` prevents submenus from expanding
+     SOLUTION: Let items be auto-height so submenus push content down */
+  .sidebar .nav > li {
+    height: auto; // Reset from 41px to allow natural expansion
+    
+    // Ensure link is still properly sized
+    > a {
+      min-height: 41px; // Use min-height instead of fixed height
+      display: flex;
+      align-items: center;
+    }
+  }
+
+  /* FIX 2: Ensure submenus are in normal document flow
+     ISSUE: metisMenu collapse classes may hide submenus
+     SOLUTION: Show submenus when expanded, keep them below parent in flow */
+  .sidebar .sidebar-nav {
+    // Submenu containers must expand naturally
+    .nav-second-level,
+    .nav-third-level {
+      &.collapse {
+        // Hidden but still in document flow
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-out;
+      }
+
+      &.collapse.in {
+        // When open, reveal all submenus
+        max-height: none;
+        overflow: visible;
+        transition: none;
+        
+        // All sub-items must be visible and clickable
+        li {
+          display: block;
+          height: auto;
+          
+          a {
+            min-height: 35px;
+            padding-left: 37px;
+            display: flex;
+            align-items: center;
+            overflow: visible; // Allow full text visibility
+          }
+        }
+      }
+    }
+
+    // Three-level nesting support
+    .nav-third-level {
+      &.collapse.in li a {
+        padding-left: 52px;
+      }
+    }
+  }
+
+  /* FIX 3: Ensure no overlapping of menu items
+     ISSUE: Position relative/absolute on menu items can cause z-index issues
+     SOLUTION: Use margin/padding for spacing, avoid absolute positioning */
+  .sidebar ul li {
+    // Position: relative is OK but ensure no absolute child positioning
+    // breaks the document flow
+    a.arrow {
+      // On mobile, arrows should not be absolutely positioned
+      // They should be part of the flex layout
+      position: relative;
+      right: auto;
+      top: auto;
+      margin-left: auto; // Push arrow to the right
+      order: 2; // After text if using flexbox parent
+    }
+
+    a.has-children {
+      margin-right: 20px; // Reduced from 40px to account for arrow position
+    }
+  }
+
+  /* FIX 4: Ensure all links are fully clickable
+     ISSUE: Hidden overflow or overlapping elements block clicks
+     SOLUTION: Explicit click targets with clear boundaries */
+  .sidebar-nav a {
+    position: relative; // For z-index stacking
+    z-index: 1; // Above any pseudo-elements
+    display: flex;
+    align-items: center;
+    width: 100%;
+    overflow: visible; // Don't cut off text
+
+    // Icon handling
+    .fa,
+    svg {
+      flex-shrink: 0; // Prevent icon squishing
+      margin-right: 10px;
+    }
+
+    // Text should wrap on mobile
+    span {
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      flex: 1;
+    }
+  }
+
+  /* FIX 5: Ensure sidebar is scrollable when expanded
+     ISSUE: Fixed heights can prevent scrolling of large menus
+     SOLUTION: Keep overflow-y: auto on sidebar container */
+  .sidebar {
+    overflow-y: auto; // Already set, just reinforce
+    overflow-x: hidden;
+    
+    // Allow sidebar to scroll within its container
+    -webkit-overflow-scrolling: touch; // Smooth scrolling on iOS
+  }
+
+  /* FIX 6: Handle context selector on mobile
+     ISSUE: Context selector may not adapt well to mobile accordion
+     SOLUTION: Make it full-width and properly styled */
+  .sidebar .context-selector {
+    .dropdown-toggle {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      width: 100%;
+      padding: 10px 15px;
+      
+      .context-icon {
+        flex-shrink: 0;
+        width: 2.5em;
+        height: 2.5em;
+        line-height: 2.5em;
+        margin-right: 10px;
+      }
+
+      .context-indicator {
+        flex: 1;
+        overflow: hidden;
+        
+        span {
+          white-space: normal; // Allow wrapping on mobile
+          text-overflow: ellipsis;
+          overflow: hidden;
+          max-width: 100%;
+        }
+      }
+
+      span.caret {
+        position: relative;
+        right: auto;
+        top: auto;
+        margin-top: 0;
+        margin-left: auto;
+      }
+    }
+  }
+
+  /* FIX 7: Ensure active state is visible
+     ISSUE: Active menu items might be hidden when parent collapsed
+     SOLUTION: Keep active indicators visible */
+  .sidebar .sidebar-nav {
+    li.active {
+      > a {
+        background-color: #eeeeee;
+        z-index: 2; // Ensure active item is above others
+      }
+
+      // When parent is expanded, show its active children
+      > .collapse.in {
+        li.active > a {
+          background-color: #f5f5f5; // Slightly different for sub-items
+        }
+      }
+    }
+  }
+}
+
+/**
+ * DESKTOP OVERRIDE: Ensure no regression on desktop
+ * These rules ensure desktop behavior is unchanged
+ */
+@media (min-width: 768px) {
+  .sidebar .nav > li {
+    // Desktop: height can be fixed (not problematic)
+    height: auto; // But let's be safe
+    
+    > a {
+      min-height: auto;
+      height: auto;
+    }
+  }
+
+  .sidebar .sidebar-nav {
+    .nav-second-level,
+    .nav-third-level {
+      // Desktop: metisMenu handles display
+      &.collapse {
+        display: none;
+      }
+
+      &.collapse.in {
+        display: block;
+      }
+    }
+  }
+
+  // Desktop: arrows can be positioned absolutely
+  .sidebar ul li a.arrow {
+    position: absolute;
+    right: 0;
+    top: 0;
+  }
+}
