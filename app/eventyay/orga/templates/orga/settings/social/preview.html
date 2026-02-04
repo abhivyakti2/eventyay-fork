@@ -1,0 +1,25 @@
+{% extends "orga/settings/base.html" %}
+
+{% load i18n %}
+
+{% block extra_title %}{% translate "Social" %} :: {% endblock extra_title %}
+
+{% block settings_content %}
+    <div id="main-title" class="d-md-flex justify-content-between">
+        <h2>{% translate "Social" %}</h2>
+        {% include "orga/event/component_link.html" %}
+    </div>
+
+    <h3>{% translate "Preview" %}</h3>
+
+    <div class="card">
+        <div class="card-body">
+            <p>{{ post.rendered_text|linebreaksbr }}</p>
+        </div>
+    </div>
+
+    <p class="mt-3">
+        <a class="btn btn-secondary" href="{{ request.event.orga_urls.settings }}settings/social/new">{% translate "Back" %}</a>
+        <a class="btn btn-success" href="{{ request.event.orga_urls.settings }}settings/social/new?confirm_preview=1">{% translate "Create scheduled post" %}</a>
+    </p>
+{% endblock settings_content %}

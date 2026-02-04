@@ -1,0 +1,49 @@
+{% extends "orga/settings/base.html" %}
+
+{% load i18n %}
+
+{% block extra_title %}{% translate "Social" %} :: {% endblock extra_title %}
+
+{% block settings_content %}
+    <div id="main-title" class="d-md-flex justify-content-between">
+        <h2>{% translate "Social" %}</h2>
+        {% include "orga/event/component_link.html" %}
+    </div>
+
+    <p>{% translate "Schedule short text updates to be posted to the event's connected Twitter account." %}</p>
+
+    <p>
+        <a href="{{ request.event.orga_urls.settings }}settings/social/new" class="btn btn-primary">
+            <i class="fa fa-plus"></i> {% translate "New scheduled post" %}
+        </a>
+    </p>
+
+    {% if object_list %}
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>{% translate "Scheduled time" %}</th>
+                    <th>{% translate "Text" %}</th>
+                    <th>{% translate "Status" %}</th>
+                    <th>{% translate "Actions" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for post in object_list %}
+                    <tr>
+                        <td>{{ post.scheduled_time }}</td>
+                        <td>{{ post.template_text }}</td>
+                        <td>{{ post.get_status_display }}</td>
+                        <td>
+                            {% if post.status == post.PENDING %}
+                                <a href="{{ request.event.orga_urls.settings }}settings/social/new?preview_for={{ post.pk }}">{% translate "Edit" %}</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="text-muted">{% translate "No scheduled posts yet." %}</p>
+    {% endif %}
+{% endblock settings_content %}

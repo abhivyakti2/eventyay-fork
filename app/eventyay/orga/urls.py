@@ -17,6 +17,9 @@ from eventyay.orga.views import (
     typeahead,
 )
 
+# Import social views from the renamed social_views.py module
+from eventyay.features.social.social_views import SocialListView, SocialCreateView, preview_view
+
 app_name = 'orga'
 urlpatterns = [
     path("", RedirectView.as_view(url="event", permanent=False), name="base"),
@@ -111,6 +114,15 @@ urlpatterns = [
                     'settings/widget',
                     event.WidgetSettings.as_view(),
                     name='settings.widget',
+                ),
+                # Social scheduling MVP
+                path(
+                    'settings/social/',
+                    include([
+                        path('', SocialListView.as_view(), name='settings.social'),
+                        path('new', SocialCreateView.as_view(), name='settings.social.new'),
+                        path('preview', preview_view, name='settings.social.preview'),
+                    ]),
                 ),
 
                 path(
