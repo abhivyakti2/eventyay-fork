@@ -1,6 +1,5 @@
 import hashlib
 import logging
-import random
 from datetime import datetime
 from urllib.parse import urlencode, urljoin, urlparse
 
@@ -17,6 +16,7 @@ from lxml import etree
 from yarl import URL
 
 from eventyay.base.models import BBBServer, BBBCall
+from eventyay.features.live.exceptions import ConsumerException
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,8 @@ def choose_server(event, room=None, prefer_server=None):
         servers = (
             servers.filter(rooms_only=False)
             .annotate(relevant_cost=F("cost"))
-            .order_by("relevant_cost")
+            # Use deterministic ordering to ensure predictable server selection and testability
+            .order_by("relevant_cost", "url")
         )
     else:
         servers = servers.annotate(
@@ -62,32 +63,80 @@ def choose_server(event, room=None, prefer_server=None):
                 ),
                 0,
             )
-        ).order_by("relevant_cost")
+        ).order_by("relevant_cost", "url")
 
-    search_order = [
-        servers.filter(url=prefer_server).filter(
+    if prefer_server:
+        preferred_servers = servers.filter(url=prefer_server).filter(
             Q(event_exclusive=event) | Q(event_exclusive__isnull=True)
-        ),
-        servers.filter(event_exclusive=event),
-        servers.filter(event_exclusive__isnull=True),
-    ]
-    for qs in search_order:
-        servers = list(qs)
-        if not servers:
-            continue
+        )
+        server = preferred_servers.first()
 
-        # Servers are sorted by cost, let's do a random pick if we have multiple with the smallest cost
-        smallest_cost = servers[0].relevant_cost
-        server = random.choice([s for s in servers if s.relevant_cost == smallest_cost])
+        if not server:
+            logger.info(
+                "bbb.server_selection",
+                extra={
+                    "event_id": event.id,
+                    "room_id": room.id if room else None,
+                    "prefer_server": prefer_server,
+                    "selected_server": None,
+                    "reason": "explicit_unavailable",
+                },
+            )
+            raise ConsumerException("bbb.prefer_server.unavailable")
 
-        if len(servers) > 1:
-            # Usually, if there are multiple servers, a cron job should be set up to the bbb_update_cost management
-            # command that calculates an actual cost function based on the server load (see there for a definition of
-            # the cost function). However, if the cron job does not run (or does not run soon enough), this little
-            # UPDATE statement will make sure we have a round-robin-like distribution among the servers by increasing
-            # the cost value temporarily with every added meeting.
+        logger.info(
+            "bbb.server_selection",
+            extra={
+                "event_id": event.id,
+                "room_id": room.id if room else None,
+                "prefer_server": prefer_server,
+                "selected_server": server.url,
+                "reason": "explicit",
+            },
+        )
+
+        if preferred_servers.count() > 1:
+            # Update cost for load balancing among preferred servers
             BBBServer.objects.filter(pk=server.pk).update(cost=F("cost") + Value(10))
         return server
+
+    if not room:
+        search_order = [
+            servers.filter(event_exclusive=event, rooms_only=False),
+            servers.filter(event_exclusive__isnull=True, rooms_only=False),
+        ]
+
+    for qs in search_order:
+        server = qs.first()
+        if server:
+            logger.info(
+                "bbb.server_selection",
+                extra={
+                    "event_id": event.id,
+                    "room_id": room.id if room else None,
+                    "prefer_server": None,
+                    "selected_server": server.url,
+                    "reason": "fallback",
+                },
+            )
+
+            if qs.count() > 1:
+                # Update cost for load balancing
+                BBBServer.objects.filter(pk=server.pk).update(cost=F("cost") + Value(10))
+            return server
+
+    # No servers available
+    logger.info(
+        "bbb.server_selection",
+        extra={
+            "event_id": event.id,
+            "room_id": room.id if room else None,
+            "prefer_server": None,
+            "selected_server": None,
+            "reason": "no_servers",
+        },
+    )
+    raise ConsumerException("bbb.no_servers_available")
 
 
 @database_sync_to_async
