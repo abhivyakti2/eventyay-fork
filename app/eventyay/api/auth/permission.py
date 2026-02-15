@@ -60,15 +60,17 @@ class EventPermission(BasePermission):
                     return False
 
         elif 'organizer' in request.resolver_match.kwargs:
-            if not request.organizer or not perm_holder.has_organizer_permission(request.organizer, request=request):
+            # Use safe attribute access to prevent AttributeError if middleware fails to initialize
+            organizer = getattr(request, 'organizer', None)
+            if not organizer or not perm_holder.has_organizer_permission(organizer, request=request):
                 return False
             if isinstance(perm_holder, User) and perm_holder.has_active_staff_session(request.session.session_key):
                 request.orgapermset = SuperuserPermissionSet()
             else:
-                request.orgapermset = perm_holder.get_organizer_permission_set(request.organizer)
+                request.orgapermset = perm_holder.get_organizer_permission_set(organizer)
 
             if isinstance(required_permission, (list, tuple)):
-                if not any(p in request.eventpermset for p in required_permission):
+                if not any(p in request.orgapermset for p in required_permission):
                     return False
             else:
                 if required_permission and required_permission not in request.orgapermset:
@@ -108,10 +110,14 @@ class CloneEventPermission(EventPermission):
             return True
 
         perm_holder = request.auth if isinstance(request.auth, (Device, TeamAPIToken)) else request.user
+        # Use safe attribute access to prevent AttributeError if middleware fails to initialize
+        organizer = getattr(request, 'organizer', None)
+        if not organizer:
+            return False
         if isinstance(perm_holder, User) and perm_holder.has_active_staff_session(request.session.session_key):
             request.orgapermset = SuperuserPermissionSet()
         else:
-            request.orgapermset = perm_holder.get_organizer_permission_set(request.organizer)
+            request.orgapermset = perm_holder.get_organizer_permission_set(organizer)
 
         return 'can_create_events' in request.orgapermset
 
